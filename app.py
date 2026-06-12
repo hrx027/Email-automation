@@ -51,13 +51,7 @@ BREVO_API_URL    = "https://api.brevo.com/v3/smtp/email"
 
 # ── Recipients ──────────────────────────────────────────────────────────────
 recipients = {
-    "akansha.khandelwal@nagarro.com":      ("Akansha Khandelwal",     "Nagarro"),
-    "aayush.bhat@nagarro.com":            ("Aayush Bhat",            "Nagarro"),
-    "akansha.agarwal@nagarro.com":        ("Akansha Agarwal",        "Nagarro"),
-    "piyush.m@nagarro.com":              ("Piyush Mankare",         "Nagarro"),
-    "vikas.yadav01@nagarro.com":         ("Vikas Yadav",            "Nagarro"),
-    "sushant.kumar@nagarro.com":         ("Sushant Kumar",          "Nagarro"),
-    "murtaja.kadiyani@nagarro.com":      ("Murtaja Kadiyani",       "Nagarro"),
+   
     "ashu.sharma@nagarro.com":           ("Ashu Sharma",            "Nagarro"),
     "jamalur.rahman@nagarro.com":        ("Jamalur Rahman",         "Nagarro"),
     "surbhi.mathur@nagarro.com":         ("Surbhi Mathur",          "Nagarro"),
@@ -132,16 +126,6 @@ along with internship experience as a
 and Quant work at
 <b>Futures First</b>.
 </p>
-
-# <p>
-# There's this position open at <b>{company}</b>.
-# </p>
-
-# <p>
-# <a href="">
-# [JOB LINK]
-# </a>
-# </p>
 
 <p>
 I'm highly committed towards software engineering and believe my skills align well with this role.

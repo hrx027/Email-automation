@@ -158,6 +158,7 @@ with col2:
 # --- Live Status ---
 st.header("4. Live Status")
 
+current_status_placeholder = st.empty()
 status_placeholder = st.empty()
 results_placeholder = st.empty()
 
@@ -167,7 +168,7 @@ if "auto_refresh" not in st.session_state:
 
 while st.session_state.get("auto_refresh", True):
     if not API_URL or not API_KEY:
-        status_placeholder.info("👈 Set API URL and API Key in the sidebar to see status")
+        current_status_placeholder.info("👈 Set API URL and API Key in the sidebar to see status")
         break
     
     try:
@@ -179,6 +180,10 @@ while st.session_state.get("auto_refresh", True):
         
         if response.status_code == 200:
             status = response.json()
+            
+            # Display current message
+            if status.get("current_message"):
+                current_status_placeholder.info(f"📢 {status['current_message']}")
             
             # Display status
             with status_placeholder.container():
@@ -204,15 +209,15 @@ while st.session_state.get("auto_refresh", True):
                 break
         
         else:
-            status_placeholder.error(f"❌ Failed to get status: {response.text}")
+            current_status_placeholder.error(f"❌ Failed to get status: {response.text}")
             break
     
     except Exception as e:
-        status_placeholder.error(f"❌ Error getting status: {e}")
+        current_status_placeholder.error(f"❌ Error getting status: {e}")
         break
     
     # Wait before refreshing
-    time.sleep(2)
+    time.sleep(1)
 
 # Manual refresh button
 if st.button("🔄 Refresh Status"):

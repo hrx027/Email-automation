@@ -143,6 +143,7 @@ sending_status = {
     "results":    [],
     "stop_flag":  False,
     "delay":      30,
+    "current_message": "",
 }
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -237,6 +238,7 @@ def send_emails_async(delay_seconds=30):
     sending_status["results"]    = []
     sending_status["stop_flag"]  = False
     sending_status["delay"]      = delay_seconds
+    sending_status["current_message"] = "Starting email sending process…"
 
     # ── Pre-flight checks ────────────────────────────────────────────────────
     if not BREVO_API_KEY:
@@ -252,6 +254,7 @@ def send_emails_async(delay_seconds=30):
         _fatal("No recipients found!")
         return
 
+    sending_status["current_message"] = f"Loading resume: {RESUME_FILE}"
     logger.info(f"📄 Loading resume: {RESUME_FILE}")
     with open(RESUME_FILE, "rb") as fh:
         resume_bytes = fh.read()
@@ -267,9 +270,11 @@ def send_emails_async(delay_seconds=30):
 
     for idx, (email, (hiring_manager, company)) in enumerate(recipients.items(), start=1):
         if sending_status["stop_flag"]:
+            sending_status["current_message"] = "Stopping email sending as requested"
             logger.info("🛑 Stopping email sending as requested")
             break
 
+        sending_status["current_message"] = f"Sending to {email} ({idx}/{total})"
         logger.info(f"📨 [{idx}/{total}] Sending to {email} — {hiring_manager} @ {company}")
         try:
             send_single_email_brevo(email, hiring_manager, company, resume_bytes, resume_filename)
@@ -294,6 +299,7 @@ def send_emails_async(delay_seconds=30):
 
         if idx < total and not sending_status["stop_flag"]:
             delay = delay_seconds
+            sending_status["current_message"] = f"Waiting {delay}s before next email ({idx}/{total} sent)"
             logger.info(
                 f"⏳ Waiting {delay}s ({delay // 60}m {delay % 60}s) before next email… "
                 f"(keep-alive pings every 10s)"
@@ -303,8 +309,10 @@ def send_emails_async(delay_seconds=30):
     sending_status["last_run"]   = time.strftime("%Y-%m-%d %H:%M:%S")
     sending_status["is_sending"] = False
     if sending_status["stop_flag"]:
+        sending_status["current_message"] = "Email sending stopped by user"
         logger.info("🛑 Email sending stopped by user")
     else:
+        sending_status["current_message"] = "All done!"
         logger.info(f"🎉 All done! Finished at {sending_status['last_run']}")
 
 
@@ -409,6 +417,7 @@ def get_status():
         "sent_error":       errors,
         "results":          sending_status["results"],
         "stop_flag":        sending_status["stop_flag"],
+        "current_message":  sending_status["current_message"],
     })
 
 

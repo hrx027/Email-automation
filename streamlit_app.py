@@ -3,10 +3,8 @@ import requests
 import time
 import json
 import re
-import base64
 from PIL import Image
 import pytesseract
-from io import BytesIO
 
 # Set page config
 st.set_page_config(
@@ -49,21 +47,6 @@ def extract_text_from_image(image):
     except Exception as e:
         st.error(f"Error extracting text from image: {e}")
         return ""
-
-def decode_base64_image(base64_string):
-    """Decode base64 string to PIL Image."""
-    try:
-        # Handle base64 with data URI prefix
-        if "base64," in base64_string:
-            base64_string = base64_string.split("base64,")[1]
-        
-        # Decode the base64 string
-        image_data = base64.b64decode(base64_string)
-        image = Image.open(BytesIO(image_data))
-        return image
-    except Exception as e:
-        st.error(f"Error decoding base64 image: {e}")
-        return None
 
 def parse_recipients_from_ocr(ocr_text):
     """Parse OCR text to extract recipients (only those with visible emails)."""
@@ -149,40 +132,49 @@ def parse_recipients_from_apollo(apollo_text):
     """Parse pasted Apollo.io content to extract recipients (only those with visible emails)."""
     recipients = []
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-    job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant", "Forward Deployed", "Software Quality Assurance"]
-    header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view", "Access email", "Access Mobile", "Click to run", "Request phone number", "Phone numbers", "Qualify Contact", "Actions", "Links", "Score", "Location", "Add column", "copilotcitizen", "Information"]
+    job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant", "Forward Deployed", "Software Quality Assurance", "Software Quality"]
+    header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view", "Access email", "Access Mobile", "Click to run", "Request phone number", "Qualify Contact", "Actions", "Links", "Score", "Location", "Add column", "Number of employees", "Industries", "Keywords", "·"]
+    skip_keywords = ["India", "Technology", "Services", "Click", "Request", "Access", "ai", "copilot", "citizen", "development", "Hyderabad", "Pilani", "Ahmedabad", "Gurugram", "Tirupati", "Bengaluru", "Rajkot", "Suryapet", "New Delhi", "Morbi", "Andhra Pradesh", "Patna", "Bahadurgarh", "Anand", "Noida", "Surendranagar", "Bharuch"]
     
-    # Split into lines, keeping blank lines to detect the pattern
+    # Split into lines
     lines = [line.strip() for line in apollo_text.split("\n")]
     
-    # Find the start index (after "Name" header)
-    start_idx = 0
+    # First, find all email positions
+    email_positions = []
     for i, line in enumerate(lines):
-        if line.strip() == "Name":
-            start_idx = i + 1
-            break
+        found_emails = re.findall(email_pattern, line)
+        if found_emails:
+            email_positions.append((i, found_emails[0]))
     
-    # First, collect all emails and their indices
-    email_indices = []
-    for i, line in enumerate(lines):
-        if i >= start_idx:
-            found_emails = re.findall(email_pattern, line)
-            if found_emails:
-                email_indices.append((i, found_emails[0]))
-    
-    # For each email, look backwards to find name and company
-    for email_idx, email in email_indices:
+    # For each email, look backwards for name and company
+    for email_idx, email in email_positions:
         name = ""
         company = ""
-        # Look back up to 10 lines for name and company
-        lookback_limit = min(10, email_idx - start_idx)
-        for j in range(email_idx - 1, max(start_idx, email_idx - lookback_limit), -1):
-            line = lines[j].strip()
-            # First, try to find company (look for lines that are not job titles, not names yet)
-            if not company and line and not any(keyword.lower() in line.lower() for keyword in job_title_keywords + header_keywords) and "@" not in line and len(line.split()) <= 3:
+        
+        # Look backwards for company (look up to 10 lines back)
+        for i in range(email_idx - 1, max(0, email_idx - 10), -1):
+            line = lines[i].strip()
+            if not line:
+                continue
+            # Check if line is a company (not a job title, not a header, not skip keyword)
+            if (not any(keyword.lower() in line.lower() for keyword in job_title_keywords + header_keywords) and
+                not any(sk.lower() in line.lower() for sk in skip_keywords) and
+                "@" not in line):
                 company = line
-            # Then try to find name (before company, 2-4 words, not keywords)
-            elif not name and line and 2 <= len(line.split()) <= 4 and not any(keyword.lower() in line.lower() for keyword in job_title_keywords + header_keywords) and "@" not in line:
+                break
+        
+        # Look backwards from company for name (look up to 15 lines back from email)
+        for i in range(email_idx - 2, max(0, email_idx - 15), -1):
+            line = lines[i].strip()
+            if not line:
+                continue
+            # Check if line is a name (2-4 words, not a job title, not a header, not skip keyword, no @, not company)
+            word_count = len(line.split())
+            if (2 <= word_count <= 4 and
+                not any(keyword.lower() in line.lower() for keyword in job_title_keywords + header_keywords) and
+                not any(sk.lower() in line.lower() for sk in skip_keywords) and
+                "@" not in line and
+                line != company):
                 name = line
                 break
         
@@ -225,167 +217,84 @@ if apollo_content:
             for r in apollo_recipients:
                 st.write(f"- {r['email']} ({r['name']} @ {r['company']})")
 
-# Option 2: Upload or Paste Apollo.io Screenshots
-st.subheader("Option 2: Upload/Paste Apollo.io Screenshots")
-input_method = st.radio(
-    "Choose input method",
-    ["Upload from device", "Paste from clipboard (base64)"]
+# Option 2: Upload Screenshots from Apollo.io
+st.subheader("Option 2: Upload Apollo.io Screenshots")
+uploaded_files = st.file_uploader(
+    "Upload one or more screenshots (PNG, JPG, JPEG)",
+    type=["png", "jpg", "jpeg"],
+    accept_multiple_files=True,
+    help="Upload screenshots from Apollo.io showing people with visible emails"
 )
 
 ocr_recipients = []
-
-if input_method == "Upload from device":
-    uploaded_files = st.file_uploader(
-        "Upload one or more screenshots (PNG, JPG, JPEG)",
-        type=["png", "jpg", "jpeg"],
-        accept_multiple_files=True,
-        help="Upload screenshots from Apollo.io showing people with visible emails"
-    )
-
-    if uploaded_files:
-        st.info(f"Processing {len(uploaded_files)} image(s)...")
+if uploaded_files:
+    st.info(f"Processing {len(uploaded_files)} image(s)...")
+    
+    for uploaded_file in uploaded_files:
+        # Open the image
+        image = Image.open(uploaded_file)
         
-        for uploaded_file in uploaded_files:
-            # Open the image
-            image = Image.open(uploaded_file)
-            
-            # Display the image
-            st.image(image, caption=f"Uploaded: {uploaded_file.name}", use_container_width=True)
-            
-            # Extract text
-            with st.spinner(f"Extracting text from {uploaded_file.name}..."):
-                ocr_text = extract_text_from_image(image)
-            
-            # Show raw OCR text in expandable section for debugging
-            with st.expander(f"View raw OCR text from {uploaded_file.name}"):
-                st.text(ocr_text)
-            
-            # Parse recipients
-            parsed = parse_recipients_from_ocr(ocr_text)
-            ocr_recipients.extend(parsed)
-            
-            # Show debug info (what we collected)
-            with st.expander(f"Debug: Collected data from {uploaded_file.name}"):
-                # Re-run the collection to show what we got
-                lines = [line.strip() for line in ocr_text.split("\n") if line.strip()]
-                email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-                job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant"]
-                header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view"]
-                
-                names_debug = []
-                companies_debug = []
-                emails_debug = []
-                
-                for line in lines:
-                    if any(keyword.lower() in line.lower() for keyword in header_keywords):
-                        continue
-                    found_emails = re.findall(email_pattern, line)
-                    if found_emails:
-                        emails_debug.extend(found_emails)
-                        continue
-                    if any(keyword.lower() in line.lower() for keyword in job_title_keywords):
-                        continue
-                    # Check name FIRST
-                    if 2 <= len(line.split()) <= 3:
-                        names_debug.append(line)
-                        continue
-                    # Then check company
-                    company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
-                    is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
-                    if is_company or len(line.split()) <= 2:
-                        companies_debug.append(line)
-                        continue
-                
-                st.write("Collected Names:")
-                st.json(names_debug)
-                st.write("Collected Companies:")
-                st.json(companies_debug)
-                st.write("Collected Emails:")
-                st.json(emails_debug)
-            
-            st.success(f"Extracted {len(parsed)} recipient(s) from {uploaded_file.name}")
+        # Display the image
+        st.image(image, caption=f"Uploaded: {uploaded_file.name}", use_container_width=True)
         
-        if ocr_recipients:
-            st.success(f"Total recipients extracted from images: {len(ocr_recipients)}")
-            with st.expander("View Extracted Recipients"):
-                for r in ocr_recipients:
-                    st.write(f"- {r['email']} ({r['name']} @ {r['company']})")
-
-else:
-    base64_input = st.text_area(
-        "Paste base64 encoded image here (e.g., data:image/png;base64,...)",
-        height=150,
-        placeholder="Paste base64 image string here..."
-    )
-
-    if base64_input:
-        st.info("Processing pasted image...")
+        # Extract text
+        with st.spinner(f"Extracting text from {uploaded_file.name}..."):
+            ocr_text = extract_text_from_image(image)
         
-        # Decode the base64 image
-        image = decode_base64_image(base64_input)
+        # Show raw OCR text in expandable section for debugging
+        with st.expander(f"View raw OCR text from {uploaded_file.name}"):
+            st.text(ocr_text)
         
-        if image:
-            # Display the image
-            st.image(image, caption="Pasted Image", use_container_width=True)
-            
-            # Extract text
-            with st.spinner("Extracting text from pasted image..."):
-                ocr_text = extract_text_from_image(image)
-            
-            # Show raw OCR text in expandable section for debugging
-            with st.expander("View raw OCR text from pasted image"):
-                st.text(ocr_text)
-            
-            # Parse recipients
-            parsed = parse_recipients_from_ocr(ocr_text)
-            ocr_recipients.extend(parsed)
-            
-            # Show debug info (what we collected)
-            with st.expander("Debug: Collected data from pasted image"):
-                # Re-run the collection to show what we got
-                lines = [line.strip() for line in ocr_text.split("\n") if line.strip()]
-                email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-                job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant"]
-                header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view"]
-                
-                names_debug = []
-                companies_debug = []
-                emails_debug = []
-                
-                for line in lines:
-                    if any(keyword.lower() in line.lower() for keyword in header_keywords):
-                        continue
-                    found_emails = re.findall(email_pattern, line)
-                    if found_emails:
-                        emails_debug.extend(found_emails)
-                        continue
-                    if any(keyword.lower() in line.lower() for keyword in job_title_keywords):
-                        continue
-                    # Check name FIRST
-                    if 2 <= len(line.split()) <= 3:
-                        names_debug.append(line)
-                        continue
-                    # Then check company
-                    company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
-                    is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
-                    if is_company or len(line.split()) <= 2:
-                        companies_debug.append(line)
-                        continue
-                
-                st.write("Collected Names:")
-                st.json(names_debug)
-                st.write("Collected Companies:")
-                st.json(companies_debug)
-                st.write("Collected Emails:")
-                st.json(emails_debug)
-            
-            st.success(f"Extracted {len(parsed)} recipient(s) from pasted image")
+        # Parse recipients
+        parsed = parse_recipients_from_ocr(ocr_text)
+        ocr_recipients.extend(parsed)
         
-        if ocr_recipients:
-            st.success(f"Total recipients extracted from images: {len(ocr_recipients)}")
-            with st.expander("View Extracted Recipients"):
-                for r in ocr_recipients:
-                    st.write(f"- {r['email']} ({r['name']} @ {r['company']})")
+        # Show debug info (what we collected)
+        with st.expander(f"Debug: Collected data from {uploaded_file.name}"):
+            # Re-run the collection to show what we got
+            lines = [line.strip() for line in ocr_text.split("\n") if line.strip()]
+            email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+            job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant"]
+            header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view"]
+            
+            names_debug = []
+            companies_debug = []
+            emails_debug = []
+            
+            for line in lines:
+                if any(keyword.lower() in line.lower() for keyword in header_keywords):
+                    continue
+                found_emails = re.findall(email_pattern, line)
+                if found_emails:
+                    emails_debug.extend(found_emails)
+                    continue
+                if any(keyword.lower() in line.lower() for keyword in job_title_keywords):
+                    continue
+                # Check name FIRST
+                if 2 <= len(line.split()) <= 3:
+                    names_debug.append(line)
+                    continue
+                # Then check company
+                company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
+                is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
+                if is_company or len(line.split()) <= 2:
+                    companies_debug.append(line)
+                    continue
+            
+            st.write("Collected Names:")
+            st.json(names_debug)
+            st.write("Collected Companies:")
+            st.json(companies_debug)
+            st.write("Collected Emails:")
+            st.json(emails_debug)
+        
+        st.success(f"Extracted {len(parsed)} recipient(s) from {uploaded_file.name}")
+    
+    if ocr_recipients:
+        st.success(f"Total recipients extracted from images: {len(ocr_recipients)}")
+        with st.expander("View Extracted Recipients"):
+            for r in ocr_recipients:
+                st.write(f"- {r['email']} ({r['name']} @ {r['company']})")
 
 # Option 3: Manual Entry
 st.subheader("Option 3: Manual Entry / Edit")

@@ -230,14 +230,13 @@ def send_single_email_brevo(
 
 
 # ── Background sender ───────────────────────────────────────────────────────
-def send_emails_async(delay_seconds=30):
+def send_emails_async(min_delay_seconds=30, max_delay_seconds=40):
     global sending_status
 
     logger.info("🚀 Starting email sending process (Brevo API)…")
     sending_status["is_sending"] = True
     sending_status["results"]    = []
     sending_status["stop_flag"]  = False
-    sending_status["delay"]      = delay_seconds
     sending_status["current_message"] = "Starting email sending process…"
 
     # ── Pre-flight checks ────────────────────────────────────────────────────
@@ -298,7 +297,8 @@ def send_emails_async(delay_seconds=30):
             })
 
         if idx < total and not sending_status["stop_flag"]:
-            delay = delay_seconds
+            # Generate random delay between min and max
+            delay = random.randint(min_delay_seconds, max_delay_seconds)
             sending_status["current_message"] = f"Waiting {delay}s before next email ({idx}/{total} sent)"
             logger.info(
                 f"⏳ Waiting {delay}s ({delay // 60}m {delay % 60}s) before next email… "
@@ -371,19 +371,25 @@ def trigger_send():
         logger.warning("⚠️  /send called while already sending — rejected")
         return jsonify({"status": "busy", "message": "Email sending is already in progress"}), 409
 
-    # Get delay from request, default to 30 seconds
+    # Get min and max delay from request, default to 30-40 seconds
     data = request.get_json() or {}
-    delay = int(data.get("delay", 30))
+    min_delay = int(data.get("min_delay", 30))
+    max_delay = int(data.get("max_delay", 40))
+    
+    # Ensure min delay is not greater than max delay
+    if min_delay > max_delay:
+        min_delay, max_delay = max_delay, min_delay
 
-    logger.info(f"📬 /send triggered via API — {len(recipients)} recipient(s), delay: {delay}s")
-    t = threading.Thread(target=send_emails_async, args=(delay,), daemon=True)
+    logger.info(f"📬 /send triggered via API — {len(recipients)} recipient(s), delay range: {min_delay}-{max_delay}s")
+    t = threading.Thread(target=send_emails_async, args=(min_delay, max_delay), daemon=True)
     t.start()
 
     return jsonify({
         "status":            "started",
         "message":           "Email sending started in background",
         "recipients_count":  len(recipients),
-        "delay_seconds":     delay,
+        "min_delay_seconds": min_delay,
+        "max_delay_seconds": max_delay,
     })
 
 

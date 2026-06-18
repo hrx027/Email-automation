@@ -78,15 +78,38 @@ if recipients:
 # --- Send Configuration ---
 st.header("2. Email Settings")
 
-delay_minutes = st.number_input(
-    "Time delay between emails (minutes)",
-    min_value=0.1,
-    max_value=60.0,
-    value=0.5,
-    step=0.1,
-    help="Wait time between sending each email (0.1 = 6 seconds)"
-)
-delay_seconds = int(delay_minutes * 60)
+col1, col2 = st.columns(2)
+
+with col1:
+    min_delay_minutes = st.number_input(
+        "Minimum delay (minutes)",
+        min_value=0.1,
+        max_value=60.0,
+        value=0.5,
+        step=0.1,
+        help="Minimum wait time between emails"
+    )
+
+with col2:
+    max_delay_minutes = st.number_input(
+        "Maximum delay (minutes)",
+        min_value=0.1,
+        max_value=60.0,
+        value=1.0,
+        step=0.1,
+        help="Maximum wait time between emails"
+    )
+
+# Convert to seconds
+min_delay_seconds = int(min_delay_minutes * 60)
+max_delay_seconds = int(max_delay_minutes * 60)
+
+# Ensure min <= max
+if min_delay_seconds > max_delay_seconds:
+    st.warning("Minimum delay is greater than maximum delay - swapping them!")
+    min_delay_seconds, max_delay_seconds = max_delay_seconds, min_delay_seconds
+
+st.info(f"Delay range: {min_delay_seconds}s - {max_delay_seconds}s")
 
 # --- Action Buttons ---
 st.header("3. Actions")
@@ -128,7 +151,7 @@ with col1:
                 response = requests.post(
                     f"{API_URL}/send",
                     headers=headers,
-                    json={"delay": delay_seconds},
+                    json={"min_delay": min_delay_seconds, "max_delay": max_delay_seconds},
                     timeout=10
                 )
                 if response.status_code in [200, 201]:

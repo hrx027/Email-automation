@@ -56,63 +56,54 @@ def parse_recipients_from_ocr(ocr_text):
     # Regex patterns
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant"]
-    company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
-    
-    # Collect all non-empty lines that are potential data
-    data_lines = []
     header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view"]
+    
+    # Step 1: Separate lines into categories
+    names = []
+    companies = []
+    emails = []
+    
     for line in lines:
-        # Skip header-like lines
+        # Skip headers
         if any(keyword.lower() in line.lower() for keyword in header_keywords):
             continue
-        # Skip lines that are clearly not data
-        if len(line) < 2:
+        
+        # Check if it's an email
+        found_emails = re.findall(email_pattern, line)
+        if found_emails:
+            emails.extend(found_emails)
             continue
-        data_lines.append(line)
+        
+        # Check if it's a job title (skip these)
+        if any(keyword.lower() in line.lower() for keyword in job_title_keywords):
+            continue
+        
+        # Check if it's a company
+        company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
+        is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
+        # Also consider lines that are short (1-2 words) and not names as potential companies
+        if is_company or (len(line.split()) <= 2 and line not in names):
+            companies.append(line)
+            continue
+        
+        # Otherwise, it's probably a name (2-3 words)
+        if 2 <= len(line.split()) <= 3:
+            names.append(line)
     
-    # Strategy 1: Look for emails and then find preceding name/company
-    i = 0
-    while i < len(data_lines):
-        # Find the next email
-        email = None
-        email_idx = -1
-        
-        for j in range(i, len(data_lines)):
-            emails_found = re.findall(email_pattern, data_lines[j])
-            if emails_found:
-                email = emails_found[0]
-                email_idx = j
-                break
-        
-        if not email:
-            break  # No more emails
-        
-        # Now look for name and company before this email
-        name = ""
-        company = ""
-        
-        # Search backwards from email_idx for company and name
-        for k in range(email_idx - 1, max(-1, email_idx - 10), -1):
-            line = data_lines[k]
-            
-            # Check for company first
-            if not company and (any(keyword.lower() in line.lower() for keyword in company_keywords) or len(line.split()) <= 3):
-                # If it's before a job title, it's probably a company
-                company = line
-            
-            # Check for name (should be before company)
-            elif not name and len(line.split()) in (2, 3) and not any(keyword.lower() in line.lower() for keyword in job_title_keywords):
-                name = line
-        
-        # If we found all three, add to recipients
-        if name and company and email:
-            recipients.append({
-                "email": email,
-                "name": name,
-                "company": company
-            })
-        
-        i = email_idx + 1
+    # Step 2: Zip names, companies, emails together (in order)
+    # If there are duplicate companies (like "UnifyApps" repeated), use the first one for all
+    if companies:
+        main_company = companies[0]
+        companies = [main_company] * len(emails)
+    
+    # Now zip them!
+    min_length = min(len(names), len(companies), len(emails))
+    for i in range(min_length):
+        recipients.append({
+            "email": emails[i],
+            "name": names[i],
+            "company": companies[i]
+        })
     
     # Remove duplicates (based on email)
     seen_emails = set()
@@ -158,6 +149,42 @@ if uploaded_files:
         # Parse recipients
         parsed = parse_recipients_from_ocr(ocr_text)
         ocr_recipients.extend(parsed)
+        
+        # Show debug info (what we collected)
+        with st.expander(f"Debug: Collected data from {uploaded_file.name}"):
+            # Re-run the collection to show what we got
+            lines = [line.strip() for line in ocr_text.split("\n") if line.strip()]
+            email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+            job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant"]
+            header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view"]
+            
+            names_debug = []
+            companies_debug = []
+            emails_debug = []
+            
+            for line in lines:
+                if any(keyword.lower() in line.lower() for keyword in header_keywords):
+                    continue
+                found_emails = re.findall(email_pattern, line)
+                if found_emails:
+                    emails_debug.extend(found_emails)
+                    continue
+                if any(keyword.lower() in line.lower() for keyword in job_title_keywords):
+                    continue
+                company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
+                is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
+                if is_company or (len(line.split()) <= 2 and line not in names_debug):
+                    companies_debug.append(line)
+                    continue
+                if 2 <= len(line.split()) <= 3:
+                    names_debug.append(line)
+            
+            st.write("Collected Names:")
+            st.json(names_debug)
+            st.write("Collected Companies:")
+            st.json(companies_debug)
+            st.write("Collected Emails:")
+            st.json(emails_debug)
         
         st.success(f"Extracted {len(parsed)} recipient(s) from {uploaded_file.name}")
     

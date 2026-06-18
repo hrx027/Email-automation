@@ -78,22 +78,35 @@ def parse_recipients_from_ocr(ocr_text):
         if any(keyword.lower() in line.lower() for keyword in job_title_keywords):
             continue
         
-        # Check if it's a company
-        company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
-        is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
-        # Also consider lines that are short (1-2 words) and not names as potential companies
-        if is_company or (len(line.split()) <= 2 and line not in names):
-            companies.append(line)
-            continue
-        
-        # Otherwise, it's probably a name (2-3 words)
+        # Check if it's a name FIRST (2-3 words)
         if 2 <= len(line.split()) <= 3:
             names.append(line)
+            continue
+        
+        # Check if it's a company (only if not a name)
+        company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
+        is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
+        if is_company or len(line.split()) <= 2:
+            companies.append(line)
+            continue
     
     # Step 2: Zip names, companies, emails together (in order)
-    # If there are duplicate companies (like "UnifyApps" repeated), use the first one for all
+    # Find the main company (look for the most frequent company or first one with company keyword)
+    main_company = ""
     if companies:
-        main_company = companies[0]
+        # First try to find a company with a keyword
+        company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
+        for comp in companies:
+            if any(keyword.lower() in comp.lower() for keyword in company_keywords):
+                main_company = comp
+                break
+        # If no keyword found, use the most frequent one
+        if not main_company:
+            from collections import Counter
+            company_counts = Counter(companies)
+            main_company = company_counts.most_common(1)[0][0]
+        
+        # Use main company for all recipients
         companies = [main_company] * len(emails)
     
     # Now zip them!
@@ -171,13 +184,16 @@ if uploaded_files:
                     continue
                 if any(keyword.lower() in line.lower() for keyword in job_title_keywords):
                     continue
-                company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
-                is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
-                if is_company or (len(line.split()) <= 2 and line not in names_debug):
-                    companies_debug.append(line)
-                    continue
+                # Check name FIRST
                 if 2 <= len(line.split()) <= 3:
                     names_debug.append(line)
+                    continue
+                # Then check company
+                company_keywords = ["Technology", "Tech", "Corp", "Corporation", "Inc", "Company", "Solutions", "Systems", "Labs", "Group", "Holdings", "Ventures", "Apps", "Software", "Digital"]
+                is_company = any(keyword.lower() in line.lower() for keyword in company_keywords)
+                if is_company or len(line.split()) <= 2:
+                    companies_debug.append(line)
+                    continue
             
             st.write("Collected Names:")
             st.json(names_debug)

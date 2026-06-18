@@ -131,7 +131,8 @@ def parse_recipients_from_ocr(ocr_text):
 def parse_recipients_from_apollo(apollo_text):
     """Parse pasted Apollo.io content to extract recipients (only those with visible emails)."""
     recipients = []
-    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    # Updated email regex - handles multiple dots after @ and various TLDs
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z0-9]{2,}'
     job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant", "Forward Deployed", "Software Quality Assurance", "Software Quality"]
     header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view", "Access email", "Access Mobile", "Click to run", "Request phone number", "Qualify Contact", "Actions", "Links", "Score", "Location", "Add column", "Number of employees", "Industries", "Keywords", "·"]
     skip_keywords = ["India", "Technology", "Services", "Click", "Request", "Access", "ai", "copilot", "citizen", "development", "Hyderabad", "Pilani", "Ahmedabad", "Gurugram", "Tirupati", "Bengaluru", "Rajkot", "Suryapet", "New Delhi", "Morbi", "Andhra Pradesh", "Patna", "Bahadurgarh", "Anand", "Noida", "Surendranagar", "Bharuch"]

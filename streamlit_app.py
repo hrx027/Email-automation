@@ -150,7 +150,7 @@ def parse_recipients_from_apollo(apollo_text):
     recipients = []
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant", "Forward Deployed", "Software Quality Assurance"]
-    header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view", "Access email", "Access Mobile", "Click to run", "Request phone number"]
+    header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view", "Access email", "Access Mobile", "Click to run", "Request phone number", "Phone numbers", "Qualify Contact", "Actions", "Links", "Score", "Location", "Add column", "copilotcitizen", "Information"]
     
     # Split into lines, keeping blank lines to detect the pattern
     lines = [line.strip() for line in apollo_text.split("\n")]
@@ -158,58 +158,40 @@ def parse_recipients_from_apollo(apollo_text):
     # Find the start index (after "Name" header)
     start_idx = 0
     for i, line in enumerate(lines):
-        if line.strip() == "Name" or line.strip().startswith("Name"):
+        if line.strip() == "Name":
             start_idx = i + 1
             break
     
-    # Iterate through lines to find recipients
-    i = start_idx
-    while i < len(lines):
-        line = lines[i].strip()
+    # First, collect all emails and their indices
+    email_indices = []
+    for i, line in enumerate(lines):
+        if i >= start_idx:
+            found_emails = re.findall(email_pattern, line)
+            if found_emails:
+                email_indices.append((i, found_emails[0]))
+    
+    # For each email, look backwards to find name and company
+    for email_idx, email in email_indices:
+        name = ""
+        company = ""
+        # Look back up to 10 lines for name and company
+        lookback_limit = min(10, email_idx - start_idx)
+        for j in range(email_idx - 1, max(start_idx, email_idx - lookback_limit), -1):
+            line = lines[j].strip()
+            # First, try to find company (look for lines that are not job titles, not names yet)
+            if not company and line and not any(keyword.lower() in line.lower() for keyword in job_title_keywords + header_keywords) and "@" not in line and len(line.split()) <= 3:
+                company = line
+            # Then try to find name (before company, 2-4 words, not keywords)
+            elif not name and line and 2 <= len(line.split()) <= 4 and not any(keyword.lower() in line.lower() for keyword in job_title_keywords + header_keywords) and "@" not in line:
+                name = line
+                break
         
-        # Check if this line is a name
-        is_name = False
-        if 2 <= len(line.split()) <= 4:
-            # Check it's not a keyword/job title/header
-            if not any(keyword.lower() in line.lower() for keyword in job_title_keywords + header_keywords):
-                # Check it doesn't look like an email or company noise
-                if "@" not in line and not any(k in line.lower() for k in ["india", "technology", "services", "click", "request", "access"]):
-                    is_name = True
-        
-        if is_name:
-            name = line
-            company = ""
-            email = ""
-            
-            # Try to find company and email in the next lines
-            # Skip next line (job title)
-            i += 1
-            
-            # Skip blank lines
-            while i < len(lines) and lines[i].strip() == "":
-                i += 1
-            
-            # Next line should be company (if available)
-            if i < len(lines):
-                company = lines[i].strip()
-                i += 1
-            
-            # Next line should be email (if available)
-            if i < len(lines):
-                email_candidate = lines[i].strip()
-                found_emails = re.findall(email_pattern, email_candidate)
-                if found_emails:
-                    email = found_emails[0]
-            
-            # If we have name, company, and valid email, add to recipients
-            if name and company and email:
-                recipients.append({
-                    "email": email,
-                    "name": name,
-                    "company": company
-                })
-        
-        i += 1
+        if name and company and email:
+            recipients.append({
+                "email": email,
+                "name": name,
+                "company": company
+            })
     
     # Remove duplicates (based on email)
     seen_emails = set()

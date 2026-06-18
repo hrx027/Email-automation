@@ -53,7 +53,7 @@ BREVO_API_URL    = "https://api.brevo.com/v3/smtp/email"
 recipients = {
     # Add your recipients here in the format:
     # "email@example.com": ("Hiring Manager Name", "Company Name"),
-    # "hr@company.com": ("John Doe", "Acme Inc."),
+     "arihant2002agarwal@gmail.com": ("John Doe", "Acme Inc."),
 }
 
 # ── Email HTML body ─────────────────────────────────────────────────────────

@@ -159,12 +159,19 @@ with col2:
 st.header("4. Live Status")
 
 current_status_placeholder = st.empty()
+countdown_placeholder = st.empty()
 status_placeholder = st.empty()
 results_placeholder = st.empty()
 
 # Auto-refresh status
 if "auto_refresh" not in st.session_state:
     st.session_state["auto_refresh"] = True
+
+if "countdown_start" not in st.session_state:
+    st.session_state["countdown_start"] = None
+
+if "countdown_total" not in st.session_state:
+    st.session_state["countdown_total"] = 0
 
 while st.session_state.get("auto_refresh", True):
     if not API_URL or not API_KEY:
@@ -181,9 +188,36 @@ while st.session_state.get("auto_refresh", True):
         if response.status_code == 200:
             status = response.json()
             
+            # Handle countdown
+            current_msg = status.get("current_message", "")
+            if "Waiting" in current_msg and "s before next email" in current_msg:
+                # Extract delay from message
+                import re
+                delay_match = re.search(r"Waiting (\d+)s", current_msg)
+                if delay_match:
+                    delay = int(delay_match.group(1))
+                    # Reset countdown if we just started waiting
+                    if st.session_state["countdown_start"] is None or "Waiting" not in st.session_state.get("last_message", ""):
+                        st.session_state["countdown_start"] = time.time()
+                        st.session_state["countdown_total"] = delay
+                
+                # Calculate time left
+                elapsed = time.time() - st.session_state["countdown_start"]
+                time_left = max(0, int(st.session_state["countdown_total"] - elapsed))
+                
+                # Display countdown
+                countdown_placeholder.warning(f"⏳ Next email in {time_left}s...")
+            else:
+                # Clear countdown if not waiting
+                countdown_placeholder.empty()
+                st.session_state["countdown_start"] = None
+                st.session_state["countdown_total"] = 0
+            
+            st.session_state["last_message"] = current_msg
+            
             # Display current message
-            if status.get("current_message"):
-                current_status_placeholder.info(f"📢 {status['current_message']}")
+            if current_msg:
+                current_status_placeholder.info(f"📢 {current_msg}")
             
             # Display status
             with status_placeholder.container():
@@ -206,6 +240,7 @@ while st.session_state.get("auto_refresh", True):
             # Stop auto-refresh if not sending
             if not status["is_sending"]:
                 st.session_state["auto_refresh"] = False
+                countdown_placeholder.empty()
                 break
         
         else:
@@ -217,7 +252,7 @@ while st.session_state.get("auto_refresh", True):
         break
     
     # Wait before refreshing
-    time.sleep(1)
+    time.sleep(0.5)
 
 # Manual refresh button
 if st.button("🔄 Refresh Status"):

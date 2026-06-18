@@ -141,6 +141,8 @@ sending_status = {
     "is_sending": False,
     "last_run":   None,
     "results":    [],
+    "stop_flag":  False,
+    "delay":      30,
 }
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -227,12 +229,14 @@ def send_single_email_brevo(
 
 
 # ── Background sender ───────────────────────────────────────────────────────
-def send_emails_async():
+def send_emails_async(delay_seconds=30):
     global sending_status
 
     logger.info("🚀 Starting email sending process (Brevo API)…")
     sending_status["is_sending"] = True
     sending_status["results"]    = []
+    sending_status["stop_flag"]  = False
+    sending_status["delay"]      = delay_seconds
 
     # ── Pre-flight checks ────────────────────────────────────────────────────
     if not BREVO_API_KEY:
@@ -243,6 +247,9 @@ def send_emails_async():
         return
     if not os.path.isfile(RESUME_FILE):
         _fatal(f"Resume file not found: {RESUME_FILE}")
+        return
+    if len(recipients) == 0:
+        _fatal("No recipients found!")
         return
 
     logger.info(f"📄 Loading resume: {RESUME_FILE}")
@@ -259,6 +266,10 @@ def send_emails_async():
     logger.info(f"📬 Total recipients: {total}")
 
     for idx, (email, (hiring_manager, company)) in enumerate(recipients.items(), start=1):
+        if sending_status["stop_flag"]:
+            logger.info("🛑 Stopping email sending as requested")
+            break
+
         logger.info(f"📨 [{idx}/{total}] Sending to {email} — {hiring_manager} @ {company}")
         try:
             send_single_email_brevo(email, hiring_manager, company, resume_bytes, resume_filename)
@@ -281,8 +292,8 @@ def send_emails_async():
                 "total":     total,
             })
 
-        if idx < total:
-            delay = random.randint(30,40)
+        if idx < total and not sending_status["stop_flag"]:
+            delay = delay_seconds
             logger.info(
                 f"⏳ Waiting {delay}s ({delay // 60}m {delay % 60}s) before next email… "
                 f"(keep-alive pings every 10s)"
@@ -291,7 +302,10 @@ def send_emails_async():
 
     sending_status["last_run"]   = time.strftime("%Y-%m-%d %H:%M:%S")
     sending_status["is_sending"] = False
-    logger.info(f"🎉 All done! Finished at {sending_status['last_run']}")
+    if sending_status["stop_flag"]:
+        logger.info("🛑 Email sending stopped by user")
+    else:
+        logger.info(f"🎉 All done! Finished at {sending_status['last_run']}")
 
 
 def _fatal(message: str):
@@ -349,15 +363,34 @@ def trigger_send():
         logger.warning("⚠️  /send called while already sending — rejected")
         return jsonify({"status": "busy", "message": "Email sending is already in progress"}), 409
 
-    logger.info(f"📬 /send triggered via API — {len(recipients)} recipient(s)")
-    t = threading.Thread(target=send_emails_async, daemon=True)
+    # Get delay from request, default to 30 seconds
+    data = request.get_json() or {}
+    delay = int(data.get("delay", 30))
+
+    logger.info(f"📬 /send triggered via API — {len(recipients)} recipient(s), delay: {delay}s")
+    t = threading.Thread(target=send_emails_async, args=(delay,), daemon=True)
     t.start()
 
     return jsonify({
         "status":            "started",
         "message":           "Email sending started in background",
         "recipients_count":  len(recipients),
+        "delay_seconds":     delay,
     })
+
+
+@app.route("/stop", methods=["POST"])
+def stop_sending():
+    if not check_auth():
+        logger.warning("⚠️  Unauthorized /stop attempt")
+        return jsonify({"error": "Unauthorized"}), 401
+
+    if not sending_status["is_sending"]:
+        return jsonify({"status": "not_sending", "message": "No email sending in progress"}), 400
+
+    sending_status["stop_flag"] = True
+    logger.info("🛑 Stop request received")
+    return jsonify({"status": "stopping", "message": "Stopping email sending…"})
 
 
 @app.route("/status", methods=["GET"])
@@ -375,6 +408,7 @@ def get_status():
         "sent_success":     success,
         "sent_error":       errors,
         "results":          sending_status["results"],
+        "stop_flag":        sending_status["stop_flag"],
     })
 
 

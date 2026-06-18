@@ -51,99 +51,65 @@ BREVO_API_URL    = "https://api.brevo.com/v3/smtp/email"
 
 # ── Recipients ──────────────────────────────────────────────────────────────
 recipients = {
-   
-    "ashu.sharma@nagarro.com":           ("Ashu Sharma",            "Nagarro"),
-    "jamalur.rahman@nagarro.com":        ("Jamalur Rahman",         "Nagarro"),
-    "surbhi.mathur@nagarro.com":         ("Surbhi Mathur",          "Nagarro"),
-    "rushikesh.bendre@nagarro.com":      ("Rushikesh Bendre",       "Nagarro"),
-    "ankit.wadhera@nagarro.com":         ("Ankit Wadhera",          "Nagarro"),
-    "swati.gujral@nagarro.com":          ("Swati Gujral",           "Nagarro"),
-    "subrata.dey@nagarro.com":           ("Subrata Dey",            "Nagarro"),
-    "ankita.kumari01@nagarro.com":       ("Ankita Kumari",          "Nagarro"),
-    "isha.arora@nagarro.com":            ("Isha Arora",             "Nagarro"),
-    "khushter.kaifi@nagarro.com":        ("Khushter Kaifi",         "Nagarro"),
-    "shikha.pal@nagarro.com":            ("Shikha Pal",             "Nagarro"),
-    "manjeet.singh@nagarro.com":         ("Manjeet Singh",          "Nagarro"),
-    "saket.gorani@nagarro.com":          ("Saket Gorani",           "Nagarro"),
-    "rajesh.kumar13@nagarro.com":        ("Rajesh Kumar",           "Nagarro"),
-    "vishal.sahijwani@nagarro.com":      ("Vishal Sahijwani",       "Nagarro"),
-    "mannat.pannu@nagarro.com":          ("Mannat Pannu",           "Nagarro"),
-    "saloni.bansal@nagarro.com":         ("Saloni Bansal",          "Nagarro"),
-    "abhishek.devra@nagarro.com":        ("Abhishek Devra",         "Nagarro"),
-    "purnima.arora@nagarro.com":         ("Purnima Arora",          "Nagarro"),
-    "akash.barman@nagarro.com":          ("Akash Barman",           "Nagarro"),
-    "ravi.sharma09@nagarro.com":         ("Ravi Sharma",            "Nagarro"),
-    "moti.kumar@nagarro.com":            ("Moti Kumar",             "Nagarro"),
-    "aditya.rathour@nagarro.com":        ("Aditya Rathour",         "Nagarro"),
-     "prateek.sharma@daffodilsw.com":       ("Prateek Sharma",         "Daffodil Software"),
-    "utkarsh.jain@daffodilsw.com":        ("Utkarsh Jain",          "Daffodil Software"),
-    "steve@daffodildb.com":               ("Steve Jones",           "Daffodil Software"),
-    "nbisht@linklyhq.com":                ("Nitish Bisht",          "Daffodil Software"),
-    "lalit.narayan@daffodilsw.com":       ("Lalit Narayan",         "Daffodil Software"),
-    "ankit@daffodildb.com":               ("Ankit Sharma",          "Daffodil Software"),
-    "arvind.jha@daffodilsw.com":          ("Arvind Jha",            "Daffodil Software"),
-    "shayra.sharma@daffodilsw.com":       ("Shayra Sharma",         "Daffodil Software"),
-    "ankush.pandita@daffodilsw.com":      ("Ankush Pandita",        "Daffodil Software"),
-    "joy@daffodilsw.com":                 ("Joydeep Bhattacharya",  "Daffodil Software"),
-    "jyoti.gupta@daffodilsw.com":         ("Jyoti Gupta",           "Daffodil Software"),
-    "jaspal.gulati@daffodilsw.com":       ("Jaspal Gulati",         "Daffodil Software"),
-    "shivanshu.verma@daffodilsw.com":     ("Shivanshu Verma",       "Daffodil Software"),
-    "anuj@linklyhq.com":                  ("Anuj Tripathi",         "Daffodil Software"),
-    "rashi.shukla@daffodilsw.com":        ("Rashi Shukla",          "Daffodil Software"),
-    "keshi.yadava@daffodilsw.com":        ("Keshi Yadava",          "Daffodil Software"),
-    "ankit.aneja@daffodilsw.com":         ("Ankit Aneja",           "Daffodil Software"),
-    "subhash.kumar@daffodilsw.com":       ("Subhash Kumar",         "Daffodil Software"),
-    "sunil.thakur@daffodilsw.com":        ("Sunil Kumar",           "Daffodil Software"),
-    "amit@daffodilsw.com":                ("Amit Singh",            "Daffodil Software"),
-    "rajkumar@daffodilsw.com":            ("Raj Prajapati",         "Daffodil Software"),
-    "ashu.garg@daffodilsw.com":           ("Ashu Garg",             "Daffodil Software"),
-    "deepika.boora@daffodilsw.com":       ("Deepika Boora",         "Daffodil Software"),
-    "monu@daffodilsw.com":                ("Monu Kumar",            "Daffodil Software"),
-    "akash.jain@daffodilsw.com":          ("Akash Jain",            "Daffodil Software"),
-    "sangeeta.rajput@daffodilsw.com":     ("Sangeeta Rajput",       "Daffodil Software"),
-    "shivanshu@daffodilsw.com":           ("Shivanshu Singh",       "Daffodil Software"),
-    "rakesh.kumar@daffodilsw.com":        ("Rakesh Singh",          "Daffodil Software"),
+    # Add your recipients here in the format:
+    # "email@example.com": ("Hiring Manager Name", "Company Name"),
+    # "hr@company.com": ("John Doe", "Acme Inc."),
 }
 
 # ── Email HTML body ─────────────────────────────────────────────────────────
 BODY_TEMPLATE = """
 <html>
-<body style="font-family:Arial, sans-serif; line-height:1.8; font-size:16px; color:#222; max-width:900px;">
+<body style="font-family:Arial, sans-serif; line-height:1.6; font-size:16px; color:#222; max-width:900px;">
 
-<p>Hello <b>{hiring_manager}</b>,</p>
+<p>Hi,</p>
 
 <p>
-I'm a <b>final-year Software Engineering student at Delhi Technological University (DTU)</b>
-competent in backend development using
-<b>Node.js, REST APIs, PostgreSQL, and MongoDB</b>
-and frontend development using
-<b>React, React Native, and Tailwind CSS</b>
-along with solid fundamentals in
-<b>Data Structures & Algorithms</b> and
-<b>Object-Oriented Programming</b>,
-along with internship experience as a
-<b>Software Developer at Employwise</b>
-and Quant work at
-<b>Futures First</b>.
+I'm <b>Hrithik Raj</b>, a CSE graduate from <b>Delhi Technological University (2026)</b>
+looking for <b>Software Development Engineer (SDE)</b> related opportunities.
 </p>
 
 <p>
-I'm highly committed towards software engineering and believe my skills align well with this role.
-I'd be really grateful if <b>you can help me secure a position available in the company</b> in any way.
-Please find my resume attached.
+<b>A quick snapshot:</b><br>
+
+• <b>SDE Intern at Imperier Holdings</b> built fullstack tools for 50+ analysts,
+improving data retrieval speed by 35%<br>
+
+• Built <b>AI/LLM projects</b> including a RAG-based PDF Analyzer and a Resume
+Matching System with 90%+ accuracy<br>
+
+• <b>LeetCode Knight</b> (1939 rating) | <b>450+</b> DSA problems solved |
+<b>JEE 99.45%ile</b> (AIR 4494)<br>
+
+• <b>Tech Stack:</b> MERN, Python, FastAPI, PostgreSQL, LangChain, RAG
+</p>
+
+<p>
+I'd love to be considered for any open SDE-related roles.
+I've attached my resume and portfolio if you'd like a deeper look.
+</p>
+
+<p>
+<b>Resume:</b>
+<a href="https://drive.google.com/file/d/1SfHMIOi_XGKYO_QlLAfAYapB_DJ0UuME/view?usp=drive_link">
+View Resume
+</a>
+<br>
+
+<b>Portfolio:</b>
+<a href="https://hrx027.app">
+View Portfolio
+</a>
 </p>
 
 <br>
 
 <p>
-Best regards,<br><br>
+Best Regards,<br><br>
 
-<b>Akash Singh</b><br>
-📧 <a href="mailto:akashhhhs.r@gmail.com">akashhhhs.r@gmail.com</a><br>
-📞 +91-8235377886<br>
-<a href="https://www.linkedin.com/in/akash-singh-a36386264">
-LinkedIn Profile
-</a>
+<b>Hrithik Raj</b><br>
+📞 +91 7029775009<br>
+📧 <a href="mailto:hrx027@gmail.com">hrx027@gmail.com</a><br>
+🔗 <a href="https://www.linkedin.com/in/hrx027">LinkedIn Profile</a>
 </p>
 
 </body>
@@ -194,7 +160,7 @@ def send_single_email_brevo(
             "email": SENDER_ADDRESS,
         },
         "to": [{"email": recipient_email}],
-        "subject": f"Application for SDE/Backend/Full Stack Fresher Roles - Akash Singh, DTU at {company}",
+        "subject": f"Application for SDE Fresher in {company}",
         "htmlContent": html_body,
         "attachment": [
             {
@@ -296,7 +262,7 @@ def send_emails_async():
             })
 
         if idx < total:
-            delay = random.randint(600, 800)
+            delay = random.randint(30,40)
             logger.info(
                 f"⏳ Waiting {delay}s ({delay // 60}m {delay % 60}s) before next email… "
                 f"(keep-alive pings every 10s)"
@@ -414,5 +380,5 @@ if AUTO_SEND:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5002))
     app.run(host="0.0.0.0", port=port, debug=False)

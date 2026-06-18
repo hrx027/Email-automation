@@ -131,7 +131,7 @@ def parse_recipients_from_ocr(ocr_text):
 def parse_recipients_from_apollo(apollo_text):
     """Parse pasted Apollo.io content to extract recipients (only those with visible emails)."""
     recipients = []
-    # Updated email regex - handles multiple dots after @ and various TLDs
+    # Updated email regex - full string match, exactly one @, multiple dots allowed
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z0-9]{2,}'
     job_title_keywords = ["Manager", "Engineer", "Developer", "Director", "VP", "President", "Lead", "Head", "Specialist", "Coordinator", "Analyst", "Intern", "Architect", "Scientist", "Consultant", "Forward Deployed", "Software Quality Assurance", "Software Quality"]
     header_keywords = ["Name", "Job title", "Company", "Emails", "Request phone", "Find people", "Default view", "Access email", "Access Mobile", "Click to run", "Request phone number", "Qualify Contact", "Actions", "Links", "Score", "Location", "Add column", "Number of employees", "Industries", "Keywords", "·"]
@@ -144,8 +144,10 @@ def parse_recipients_from_apollo(apollo_text):
     email_positions = []
     for i, line in enumerate(lines):
         found_emails = re.findall(email_pattern, line)
-        if found_emails:
-            email_positions.append((i, found_emails[0]))
+        for email in found_emails:
+            # Validate exactly one @
+            if email.count('@') == 1:
+                email_positions.append((i, email))
     
     # For each email, look backwards for name and company
     for email_idx, email in email_positions:

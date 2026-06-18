@@ -78,13 +78,15 @@ if recipients:
 # --- Send Configuration ---
 st.header("2. Email Settings")
 
-delay_seconds = st.slider(
-    "Time delay between emails (seconds)",
-    min_value=5,
-    max_value=120,
-    value=30,
-    help="Wait time between sending each email"
+delay_minutes = st.number_input(
+    "Time delay between emails (minutes)",
+    min_value=0.1,
+    max_value=60.0,
+    value=0.5,
+    step=0.1,
+    help="Wait time between sending each email (0.1 = 6 seconds)"
 )
+delay_seconds = int(delay_minutes * 60)
 
 # --- Action Buttons ---
 st.header("3. Actions")

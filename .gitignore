@@ -3,7 +3,7 @@ venv/
 __pycache__/
 .DS_Store
 *.pyc
-__pycache__/
 *.swp
 *.swo
 *~
+recipients.json

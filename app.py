@@ -9,6 +9,7 @@ import os
 import logging
 import requests
 import threading
+import json
 from flask import Flask, jsonify, request
 
 # Configure logging
@@ -50,11 +51,30 @@ AUTO_SEND        = os.environ.get("AUTO_SEND", "true").lower() == "true"
 BREVO_API_URL    = "https://api.brevo.com/v3/smtp/email"
 
 # ── Recipients ──────────────────────────────────────────────────────────────
-recipients = {
-    # Add your recipients here in the format:
-    # "email@example.com": ("Hiring Manager Name", "Company Name"),
-     "arihant2002agarwal@gmail.com": ("John Doe", "Acme Inc."),
-}
+RECIPIENTS_FILE = "recipients.json"
+
+def load_recipients():
+    """Load recipients from JSON file."""
+    if not os.path.exists(RECIPIENTS_FILE):
+        return {}
+    try:
+        with open(RECIPIENTS_FILE, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading recipients: {e}")
+        return {}
+
+def save_recipients(recipients_dict):
+    """Save recipients to JSON file."""
+    try:
+        with open(RECIPIENTS_FILE, "w") as f:
+            json.dump(recipients_dict, f, indent=2)
+        logger.info(f"Saved {len(recipients_dict)} recipients to {RECIPIENTS_FILE}")
+    except Exception as e:
+        logger.error(f"Error saving recipients: {e}")
+
+# Load recipients on startup
+recipients = load_recipients()
 
 # ── Email HTML body ─────────────────────────────────────────────────────────
 BODY_TEMPLATE = """
@@ -296,10 +316,13 @@ def home():
         "service": "Email Sender API (Brevo)",
         "status":  "running",
         "endpoints": {
-            "/":       "This page",
-            "/health": "Health check (GET)",
-            "/send":   "Trigger email sending (POST)",
-            "/status": "Check sending status (GET)",
+            "/":                  "This page",
+            "/health":            "Health check (GET)",
+            "/send":              "Trigger email sending (POST)",
+            "/status":            "Check sending status (GET)",
+            "/recipients":        "List all recipients (GET)",
+            "/recipients":        "Add a recipient (POST)",
+            "/recipients/<email>": "Delete a recipient (DELETE)",
         },
     })
 
@@ -353,6 +376,48 @@ def get_status():
         "sent_error":       errors,
         "results":          sending_status["results"],
     })
+
+
+# ── Recipient API Endpoints ──────────────────────────────────────────────────
+@app.route("/recipients", methods=["GET"])
+def list_recipients():
+    if not check_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    return jsonify({"recipients": recipients, "count": len(recipients)})
+
+
+@app.route("/recipients", methods=["POST"])
+def add_recipient():
+    if not check_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    if not data or "email" not in data or "name" not in data or "company" not in data:
+        return jsonify({"error": "Missing required fields: email, name, company"}), 400
+    
+    email = data["email"].strip()
+    name = data["name"].strip()
+    company = data["company"].strip()
+    
+    if email in recipients:
+        return jsonify({"error": f"Recipient {email} already exists"}), 409
+    
+    recipients[email] = [name, company]
+    save_recipients(recipients)
+    return jsonify({"message": f"Added recipient: {email}", "recipient": {email: [name, company]}}), 201
+
+
+@app.route("/recipients/<email>", methods=["DELETE"])
+def delete_recipient(email):
+    if not check_auth():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    if email not in recipients:
+        return jsonify({"error": f"Recipient {email} not found"}), 404
+    
+    del recipients[email]
+    save_recipients(recipients)
+    return jsonify({"message": f"Deleted recipient: {email}"})
 
 
 # ── Auto-send on startup ─────────────────────────────────────────────────────

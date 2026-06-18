@@ -1,9 +1,3 @@
 .env
 venv/
 __pycache__/
-.DS_Store
-*.pyc
-*.swp
-*.swo
-*~
-recipients.json

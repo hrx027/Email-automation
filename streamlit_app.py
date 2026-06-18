@@ -198,6 +198,9 @@ if "countdown_start" not in st.session_state:
 if "countdown_total" not in st.session_state:
     st.session_state["countdown_total"] = 0
 
+if "last_delay" not in st.session_state:
+    st.session_state["last_delay"] = 0
+
 while st.session_state.get("auto_refresh", True):
     if not API_URL or not API_KEY:
         current_status_placeholder.info("👈 Set API URL and API Key in the sidebar to see status")
@@ -220,11 +223,16 @@ while st.session_state.get("auto_refresh", True):
                 import re
                 delay_match = re.search(r"Waiting (\d+)s", current_msg)
                 if delay_match:
-                    delay = int(delay_match.group(1))
-                    # Reset countdown if we just started waiting
-                    if st.session_state["countdown_start"] is None or "Waiting" not in st.session_state.get("last_message", ""):
+                    current_delay = int(delay_match.group(1))
+                    # Reset countdown if we just started waiting OR delay changed
+                    if (
+                        st.session_state["countdown_start"] is None 
+                        or "Waiting" not in st.session_state.get("last_message", "")
+                        or current_delay != st.session_state["last_delay"]
+                    ):
                         st.session_state["countdown_start"] = time.time()
-                        st.session_state["countdown_total"] = delay
+                        st.session_state["countdown_total"] = current_delay
+                        st.session_state["last_delay"] = current_delay
                 
                 # Calculate time left
                 elapsed = time.time() - st.session_state["countdown_start"]
@@ -237,6 +245,7 @@ while st.session_state.get("auto_refresh", True):
                 countdown_placeholder.empty()
                 st.session_state["countdown_start"] = None
                 st.session_state["countdown_total"] = 0
+                st.session_state["last_delay"] = 0
             
             st.session_state["last_message"] = current_msg
             
